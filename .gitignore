@@ -1,0 +1,10 @@
+# Build results
+bin/
+obj/
+
+# Visual Studio / Rider / VSCode
+.vs/
+.idea/
+.vscode/
+*.user
+*.suo
