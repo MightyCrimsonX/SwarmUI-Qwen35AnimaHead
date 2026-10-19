@@ -99,29 +99,32 @@ public class Qwen35AnimaHeadExtension : Extension
         lock (InstallLock)
         {
             List<string> customNodesDirs = GetComfyCustomNodesDirectories();
-            bool anyCloned = false;
-
-            foreach (string customNodesDir in customNodesDirs)
+            if (customNodesDirs.Any(dir => Directory.Exists(Path.Combine(dir, "comfyui-qwen35-anima-head"))))
             {
-                string targetDir = Path.Combine(customNodesDir, "comfyui-qwen35-anima-head");
-                if (!Directory.Exists(targetDir))
+                return false;
+            }
+
+            string targetCustomNodes = customNodesDirs.FirstOrDefault();
+            if (string.IsNullOrWhiteSpace(targetCustomNodes))
+            {
+                return false;
+            }
+
+            bool anyCloned = false;
+            try
+            {
+                if (!Directory.Exists(targetCustomNodes))
                 {
-                    try
-                    {
-                        if (!Directory.Exists(customNodesDir))
-                        {
-                            Directory.CreateDirectory(customNodesDir);
-                        }
-                        Logs.Info($"[Qwen35Anima] Extension not found in '{customNodesDir}'. Cloning {ComfyRepoUrl} via git...");
-                        string cloneOutput = Utilities.RunGitProcess($"clone {ComfyRepoUrl}", customNodesDir).GetAwaiter().GetResult();
-                        Logs.Info($"[Qwen35Anima] Git clone output: {cloneOutput.Trim()}");
-                        anyCloned = true;
-                    }
-                    catch (Exception ex)
-                    {
-                        Logs.Error($"[Qwen35Anima] Failed to clone comfyui-qwen35-anima-head into '{customNodesDir}': {ex.ReadableString()}");
-                    }
+                    Directory.CreateDirectory(targetCustomNodes);
                 }
+                Logs.Info($"[Qwen35Anima] Extension not found in ComfyUI custom_nodes. Cloning {ComfyRepoUrl} into '{targetCustomNodes}'...");
+                string cloneOutput = Utilities.RunGitProcess($"clone {ComfyRepoUrl}", targetCustomNodes).GetAwaiter().GetResult();
+                Logs.Info($"[Qwen35Anima] Git clone output: {cloneOutput.Trim()}");
+                anyCloned = true;
+            }
+            catch (Exception ex)
+            {
+                Logs.Error($"[Qwen35Anima] Failed to clone comfyui-qwen35-anima-head into '{targetCustomNodes}': {ex.ReadableString()}");
             }
 
             if (anyCloned)
@@ -176,6 +179,12 @@ public class Qwen35AnimaHeadExtension : Extension
             "nawka12",
             "Loads the Qwen3.5-0.8B + head text encoder (qwen_3_5_08b_anima_head_L20 / imgloss files) for Anima models."
         ));
+
+        // Ensure custom node is ready at server startup rather than waiting for generation time
+        Program.ReadyEvent += () =>
+        {
+            Task.Run(EnsureCustomNodeInstalled);
+        };
 
         AnimaGroup = new(
             "Anima Qwen 3.5",
