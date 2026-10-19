@@ -180,12 +180,6 @@ public class Qwen35AnimaHeadExtension : Extension
             "Loads the Qwen3.5-0.8B + head text encoder (qwen_3_5_08b_anima_head_L20 / imgloss files) for Anima models."
         ));
 
-        // Ensure custom node is ready at server startup rather than waiting for generation time
-        Program.ReadyEvent += () =>
-        {
-            Task.Run(EnsureCustomNodeInstalled);
-        };
-
         AnimaGroup = new(
             "Anima Qwen 3.5",
             Toggles: false,
@@ -305,8 +299,13 @@ public class Qwen35AnimaHeadExtension : Extension
                 ["device"] = device
             });
             g.LoadingClip = [customClipLoaderNode, 0];
-
             Logs.Info($"[Qwen35Anima] Using {NodeClassType} for text encoder '{modelName}' (device: {device}).");
         }, -15);
+    }
+
+    /// <inheritdoc/>
+    public override void OnPreLaunch()
+    {
+        _ = Task.Run(EnsureCustomNodeInstalled);
     }
 }
